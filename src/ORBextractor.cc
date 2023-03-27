@@ -1189,7 +1189,7 @@ namespace ORB_SLAM3
         return monoIndex;
     }
     /**
-     * @brief 计算图像金字塔,但貌似实际上好像金字塔中的图像没有边界
+     * @brief 计算图像金字塔,但貌似实际上好像金字塔中的图像没有边
     */
     void ORBextractor::ComputePyramid(cv::Mat image)
     {
