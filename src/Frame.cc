@@ -285,7 +285,19 @@ Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeSt
     AssignFeaturesToGrid();
 }
 
-
+/**
+ * @brief 单目帧
+ * @param imGray 灰度图
+ * @param timeStamp 时间戳
+ * @param extractor 特征提取器
+ * @param voc 词袋，指针-只用一个内存
+ * @param pCamera 相机模型
+ * @param distCoef 畸变参数
+ * @param bf 虚假基线
+ * @param thDepth 深度范围
+ * @param pPrevF 上一帧
+ * @param ImuCalib IMU标定参数
+*/
 Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, GeometricCamera* pCamera, cv::Mat &distCoef, const float &bf, const float &thDepth, Frame* pPrevF, const IMU::Calib &ImuCalib)
     :mpcpi(NULL),mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
      mTimeStamp(timeStamp), mK(static_cast<Pinhole*>(pCamera)->toK()), mK_(static_cast<Pinhole*>(pCamera)->toK_()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
@@ -298,6 +310,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     // Scale Level Info
     mnScaleLevels = mpORBextractorLeft->GetLevels();
     mfScaleFactor = mpORBextractorLeft->GetScaleFactor();
+    //为啥取对数了呢
     mfLogScaleFactor = log(mfScaleFactor);
     mvScaleFactors = mpORBextractorLeft->GetScaleFactors();
     mvInvScaleFactors = mpORBextractorLeft->GetInverseScaleFactors();
@@ -317,6 +330,8 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
 
 
     N = mvKeys.size();
+    printlog();
+    printf("N = %d \n ",N);
     if(mvKeys.empty())
         return;
 
@@ -414,7 +429,11 @@ void Frame::AssignFeaturesToGrid()
         }
     }
 }
-
+/**
+ * @brief Frame中进入特征提取流程
+ * @param flag 0左目，1右目
+ * @param im 输入灰度图像
+*/
 void Frame::ExtractORB(int flag, const cv::Mat &im, const int x0, const int x1)
 {
     vector<int> vLapping = {x0,x1};
@@ -743,7 +762,9 @@ void Frame::ComputeBoW()
         mpORBvocabulary->transform(vCurrentDesc,mBowVec,mFeatVec,4);
     }
 }
-
+/**
+ * @brief 
+*/
 void Frame::UndistortKeyPoints()
 {
     if(mDistCoef.at<float>(0)==0.0)
@@ -753,6 +774,7 @@ void Frame::UndistortKeyPoints()
     }
 
     // Fill matrix with points
+    //将特征点放入到cv::Mat中
     cv::Mat mat(N,2,CV_32F);
 
     for(int i=0; i<N; i++)
@@ -763,6 +785,7 @@ void Frame::UndistortKeyPoints()
 
     // Undistort points
     mat=mat.reshape(2);
+    //这个函数流程如下，先计算归一化坐标，然后进行畸变，再通过内参反投影回像素上
     cv::undistortPoints(mat,mat, static_cast<Pinhole*>(mpCamera)->toK(),mDistCoef,cv::Mat(),mK);
     mat=mat.reshape(1);
 

@@ -69,6 +69,7 @@ namespace ORB_SLAM3
 {
 
     const int PATCH_SIZE = 31;
+    //在计算角度的时候的
     const int HALF_PATCH_SIZE = 15;
     const int EDGE_THRESHOLD = 19;
 
@@ -432,16 +433,22 @@ namespace ORB_SLAM3
         mvImagePyramid.resize(nlevels);
 
         mnFeaturesPerLevel.resize(nlevels);
+        
+        //开始计算每层提取的特征点个数，每层特征点个数按照总面积
+        //从第0层开始计算，第1层的缩小倍数
         float factor = 1.0f / scaleFactor;
+        //计算第1层分配的特征点数
         float nDesiredFeaturesPerScale = nfeatures*(1 - factor)/(1 - (float)pow((double)factor, (double)nlevels));
-
+        printf("DesiredFeaturesPerScale = %f \n",nDesiredFeaturesPerScale);
         int sumFeatures = 0;
+        //按照等比数列通项公式，计算从第0层到第n-2层的特征点
         for( int level = 0; level < nlevels-1; level++ )
         {
             mnFeaturesPerLevel[level] = cvRound(nDesiredFeaturesPerScale);
             sumFeatures += mnFeaturesPerLevel[level];
             nDesiredFeaturesPerScale *= factor;
         }
+        //最顶层特征点个数
         mnFeaturesPerLevel[nlevels-1] = std::max(nfeatures - sumFeatures, 0);
 
         const int npoints = 512;
@@ -450,21 +457,31 @@ namespace ORB_SLAM3
 
         //This is for orientation
         // pre-compute the end of a row in a circular patch
+        
         umax.resize(HALF_PATCH_SIZE + 1);
-
+        //向下取整 vmax = 11
         int v, v0, vmax = cvFloor(HALF_PATCH_SIZE * sqrt(2.f) / 2 + 1);
+        //向上取整 vmin = 11
         int vmin = cvCeil(HALF_PATCH_SIZE * sqrt(2.f) / 2);
+        //hp2 = 225
         const double hp2 = HALF_PATCH_SIZE*HALF_PATCH_SIZE;
+        //hp2 = u2+v2;
+        ///1/4圆的下半部分的u数值
         for (v = 0; v <= vmax; ++v)
             umax[v] = cvRound(sqrt(hp2 - v * v));
 
         // Make sure we are symmetric
-        for (v = HALF_PATCH_SIZE, v0 = 0; v >= vmin; --v)
+        //1/4圆的上半部分
+        for (v = HALF_PATCH_SIZE, v0 = 0; v >=vmin ; --v)
         {
             while (umax[v0] == umax[v0 + 1])
                 ++v0;
             umax[v] = v0;
             ++v0;
+        }
+        for (int i = 0; i < umax.size(); i++)
+        {
+            printf("umax[%d] = %d \n",i,umax[i]);
         }
     }
 
@@ -781,7 +798,7 @@ namespace ORB_SLAM3
     void ORBextractor::ComputeKeyPointsOctTree(vector<vector<KeyPoint> >& allKeypoints)
     {
         allKeypoints.resize(nlevels);
-
+        //这个应该就是网格大小
         const float W = 35;
 
         for (int level = 0; level < nlevels; ++level)
@@ -801,23 +818,28 @@ namespace ORB_SLAM3
             const int nRows = height/W;
             const int wCell = ceil(width/nCols);
             const int hCell = ceil(height/nRows);
-
+            
+            //按照行遍历网格
             for(int i=0; i<nRows; i++)
             {
                 const float iniY =minBorderY+i*hCell;
+                //这是什么玩意
                 float maxY = iniY+hCell+6;
-
+                //超过下边界点3个像素
                 if(iniY>=maxBorderY-3)
                     continue;
+                //？？？？
                 if(maxY>maxBorderY)
                     maxY = maxBorderY;
-
+                //按列遍历
                 for(int j=0; j<nCols; j++)
                 {
                     const float iniX =minBorderX+j*wCell;
                     float maxX = iniX+wCell+6;
+                    //超过下边界点3个像素
                     if(iniX>=maxBorderX-6)
                         continue;
+                    //？？？？
                     if(maxX>maxBorderX)
                         maxX = maxBorderX;
 
@@ -1166,30 +1188,40 @@ namespace ORB_SLAM3
         //cout << "[ORBextractor]: extracted " << _keypoints.size() << " KeyPoints" << endl;
         return monoIndex;
     }
-
+    /**
+     * @brief 计算图像金字塔,但貌似实际上好像金字塔中的图像没有边界
+    */
     void ORBextractor::ComputePyramid(cv::Mat image)
     {
         for (int level = 0; level < nlevels; ++level)
         {
+            //在原图的基础上加上一个边界EDGE_THRESHOLD，并在新的图像上画一个矩形
             float scale = mvInvScaleFactor[level];
             Size sz(cvRound((float)image.cols*scale), cvRound((float)image.rows*scale));
             Size wholeSize(sz.width + EDGE_THRESHOLD*2, sz.height + EDGE_THRESHOLD*2);
             Mat temp(wholeSize, image.type()), masktemp;
             mvImagePyramid[level] = temp(Rect(EDGE_THRESHOLD, EDGE_THRESHOLD, sz.width, sz.height));
-
             // Compute the resized image
             if( level != 0 )
             {
+                //将上层图像缩放到当前层数，0，0表示自动计算水平方向和垂直方向的缩放系数，INTER_LINEAR表示线性插值
                 resize(mvImagePyramid[level-1], mvImagePyramid[level], sz, 0, 0, INTER_LINEAR);
-
+                std::stringstream ss;
+                ss<<level<<"image";
+                cv::imshow(ss.str(),mvImagePyramid[level]);
+                cv::waitKey(0);
                 copyMakeBorder(mvImagePyramid[level], temp, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD,
                                BORDER_REFLECT_101+BORDER_ISOLATED);
             }
             else
             {
+                //第一层图像
+                //在图像上添加边框（输入图像，输出图像，上，下，左，右边框大小，填充类型）
+                //这里直接将图像传给了temp??
                 copyMakeBorder(image, temp, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD,
                                BORDER_REFLECT_101);
             }
+
         }
 
     }

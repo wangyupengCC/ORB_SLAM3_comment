@@ -99,12 +99,15 @@ protected:
     int minThFAST;
 
     std::vector<int> mnFeaturesPerLevel;
-
+    //每一个v坐标数值对应的u
     std::vector<int> umax;
-
+    //每一层的尺度因子
     std::vector<float> mvScaleFactor;
-    std::vector<float> mvInvScaleFactor;    
+    //每一层的尺度因子
+    std::vector<float> mvInvScaleFactor; 
+    //每一层的尺度因子的平方
     std::vector<float> mvLevelSigma2;
+    //每一层尺度因子倒数的平方
     std::vector<float> mvInvLevelSigma2;
 };
 

@@ -559,17 +559,17 @@ void Tracking::newParameterLoader(Settings *settings) {
     mImageScale = 1.0f;
 
     mK = cv::Mat::eye(3,3,CV_32F);
+    //一个是OpenCV的
     mK.at<float>(0,0) = mpCamera->getParameter(0);
     mK.at<float>(1,1) = mpCamera->getParameter(1);
     mK.at<float>(0,2) = mpCamera->getParameter(2);
     mK.at<float>(1,2) = mpCamera->getParameter(3);
-
+    //一个是Eigen的
     mK_.setIdentity();
     mK_(0,0) = mpCamera->getParameter(0);
     mK_(1,1) = mpCamera->getParameter(1);
     mK_(0,2) = mpCamera->getParameter(2);
     mK_(1,2) = mpCamera->getParameter(3);
-
     if((mSensor==System::STEREO || mSensor==System::IMU_STEREO || mSensor==System::IMU_RGBD) &&
         settings->cameraType() == Settings::KannalaBrandt){
         mpCamera2 = settings->camera2();
@@ -608,26 +608,32 @@ void Tracking::newParameterLoader(Settings *settings) {
 
     if(mSensor==System::STEREO || mSensor==System::IMU_STEREO)
         mpORBextractorRight = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
-
+    //如果是单目以及单目+IMU模式，特征点是跟踪模式的5倍
     if(mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR)
         mpIniORBextractor = new ORBextractor(5*nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
+    //设置一些IMU的参数
     //IMU parameters
     Sophus::SE3f Tbc = settings->Tbc();
     mInsertKFsLost = settings->insertKFsWhenLost();
     mImuFreq = settings->imuFrequency();
     mImuPer = 0.001; //1.0 / (double) mImuFreq;     //TODO: ESTO ESTA BIEN?
+    //这里输入的是连续时间的bias和bias的方差
     float Ng = settings->noiseGyro();
     float Na = settings->noiseAcc();
     float Ngw = settings->gyroWalk();
     float Naw = settings->accWalk();
 
     const float sf = sqrt(mImuFreq);
+    //连续时间转到离散时间，噪声
+    //但是这里与VINS描述的不太一样
     mpImuCalib = new IMU::Calib(Tbc,Ng*sf,Na*sf,Ngw/sf,Naw/sf);
 
     mpImuPreintegratedFromLastKF = new IMU::Preintegrated(IMU::Bias(),*mpImuCalib);
 }
-
+/**
+ * @brief 传入相机相关参数
+*/
 bool Tracking::ParseCamParamFile(cv::FileStorage &fSettings)
 {
     mDistCoef = cv::Mat::zeros(4,1,CV_32F);
@@ -1225,7 +1231,9 @@ bool Tracking::ParseCamParamFile(cv::FileStorage &fSettings)
 
     return true;
 }
-
+/**
+ * @brief 传入ORB特征参数
+*/
 bool Tracking::ParseORBParamFile(cv::FileStorage &fSettings)
 {
     bool b_miss_params = false;
@@ -1291,12 +1299,12 @@ bool Tracking::ParseORBParamFile(cv::FileStorage &fSettings)
     {
         return false;
     }
-
+    //左目特征提取器
     mpORBextractorLeft = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
     if(mSensor==System::STEREO || mSensor==System::IMU_STEREO)
         mpORBextractorRight = new ORBextractor(nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
-
+    //单目初始化特征提取器
     if(mSensor==System::MONOCULAR || mSensor==System::IMU_MONOCULAR)
         mpIniORBextractor = new ORBextractor(5*nFeatures,fScaleFactor,nLevels,fIniThFAST,fMinThFAST);
 
@@ -1309,7 +1317,9 @@ bool Tracking::ParseORBParamFile(cv::FileStorage &fSettings)
 
     return true;
 }
-
+/**
+ * @brief 传入IMU的相关参数
+*/
 bool Tracking::ParseIMUParamFile(cv::FileStorage &fSettings)
 {
     bool b_miss_params = false;
@@ -1578,6 +1588,7 @@ Sophus::SE3f Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, co
 Sophus::SE3f Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp, string filename)
 {
     mImGray = im;
+    //根据通道数进行数据转换，转换成灰度图像
     if(mImGray.channels()==3)
     {
         if(mbRGB)
@@ -1604,6 +1615,7 @@ Sophus::SE3f Tracking::GrabImageMonocular(const cv::Mat &im, const double &times
     {
         if(mState==NOT_INITIALIZED || mState==NO_IMAGES_YET)
         {
+            //构造初始化帧
             mCurrentFrame = Frame(mImGray,timestamp,mpIniORBextractor,mpORBVocabulary,mpCamera,mDistCoef,mbf,mThDepth,&mLastFrame,*mpImuCalib);
         }
         else
@@ -1771,23 +1783,23 @@ bool Tracking::PredictStateIMU()
 
         mCurrentFrame.mImuBias = mpLastKeyFrame->GetImuBias();
         mCurrentFrame.mPredBias = mCurrentFrame.mImuBias;
-        std::cout<<"/********************IMU infromation********************/"<<std::endl;
-        std::cout<<std::endl;
-        Eigen::Matrix3f R12 = Rwb1.transpose()*Rwb2;
-        Eigen::Quaternionf rwb1(Rwb1);
-        Eigen::Quaternionf rwb2(Rwb2);
-        rwb1.normalize();
-        rwb2.normalize();
-        angular_distance = 180 / M_PI * rwb1.angularDistance(rwb2);
-        // Eigen::Vector3f euler_angles = R12.eulerAngles(2,0,1);
-        std::cout<<"delta angular_distance = "<<angular_distance<<std::endl;
-        std::cout<<std::endl;
-        std::cout<<"delta_t = "<<twb2.transpose() - twb1.transpose()<<std::endl;
-        std::cout<<std::endl;
-        std::cout<<"Vwb2 = "<<Vwb2.transpose() - Vwb1.transpose()<<std::endl;
-        std::cout<<std::endl;
-        std::cout<<"mImuBias = "<<mpLastKeyFrame->GetImuBias()<<std::endl;
-        std::cout<<std::endl;
+        // std::cout<<"/********************IMU infromation********************/"<<std::endl;
+        // std::cout<<std::endl;
+        // Eigen::Matrix3f R12 = Rwb1.transpose()*Rwb2;
+        // Eigen::Quaternionf rwb1(Rwb1);
+        // Eigen::Quaternionf rwb2(Rwb2);
+        // rwb1.normalize();
+        // rwb2.normalize();
+        // angular_distance = 180 / M_PI * rwb1.angularDistance(rwb2);
+        // // Eigen::Vector3f euler_angles = R12.eulerAngles(2,0,1);
+        // std::cout<<"delta angular_distance = "<<angular_distance<<std::endl;
+        // std::cout<<std::endl;
+        // std::cout<<"delta_t = "<<twb2.transpose() - twb1.transpose()<<std::endl;
+        // std::cout<<std::endl;
+        // std::cout<<"Vwb2 = "<<Vwb2.transpose() - Vwb1.transpose()<<std::endl;
+        // std::cout<<std::endl;
+        // std::cout<<"mImuBias = "<<mpLastKeyFrame->GetImuBias()<<std::endl;
+        // std::cout<<std::endl;
         return true;
     }
     else if(!mbMapUpdated)

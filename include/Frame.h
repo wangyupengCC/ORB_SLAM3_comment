@@ -39,6 +39,8 @@
 #include "Eigen/Core"
 #include "sophus/se3.hpp"
 
+#include "utility.h"
+
 namespace ORB_SLAM3
 {
 #define FRAME_GRID_ROWS 48
@@ -220,6 +222,7 @@ public:
     float mThDepth;
 
     // Number of KeyPoints.
+    //特征点个数
     int N;
 
     // Vector of keypoints (original for visualization) and undistorted (actually used by the system).

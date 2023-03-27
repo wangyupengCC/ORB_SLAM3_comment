@@ -232,6 +232,7 @@ protected:
     bool mbMapUpdated;
 
     // Imu preintegration from last frame
+    //上一帧到当前帧的预积分值
     IMU::Preintegrated *mpImuPreintegratedFromLastKF;
 
     // Queue of IMU measurements between frames

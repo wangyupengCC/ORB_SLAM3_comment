@@ -28,7 +28,10 @@ using namespace std;
 
 namespace ORB_SLAM3
 {
-
+/**
+ * @brief 关键帧数据库初始化
+ * @param voc 全局描述子，同时创建一个和voc大小一样的mvInvertedFile
+*/
 KeyFrameDatabase::KeyFrameDatabase (const ORBVocabulary &voc):
     mpVoc(&voc)
 {
