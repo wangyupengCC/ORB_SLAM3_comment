@@ -330,8 +330,6 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
 
 
     N = mvKeys.size();
-    printlog();
-    printf("N = %d \n ",N);
     if(mvKeys.empty())
         return;
 
@@ -341,7 +339,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     mvuRight = vector<float>(N,-1);
     mvDepth = vector<float>(N,-1);
     mnCloseMPs = 0;
-
+    //将地图点的数量和当前特征数量保持一致
     mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
 
     mmProjectPoints.clear();// = map<long unsigned int, cv::Point2f>(N, static_cast<cv::Point2f>(NULL));

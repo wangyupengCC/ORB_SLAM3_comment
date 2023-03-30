@@ -23,6 +23,7 @@
 #include <list>
 #include <opencv2/opencv.hpp>
 
+#include "utility.h"
 
 namespace ORB_SLAM3
 {
@@ -91,13 +92,17 @@ protected:
 
     void ComputeKeyPointsOld(std::vector<std::vector<cv::KeyPoint> >& allKeypoints);
     std::vector<cv::Point> pattern;
-
+    //要提取的特征点的总数
     int nfeatures;
+    //尺度因子
     double scaleFactor;
+    //特征金字塔层数
     int nlevels;
+    //初始响应值
     int iniThFAST;
+    //最小响应值
     int minThFAST;
-
+    // 每层的特征点的个数？？？
     std::vector<int> mnFeaturesPerLevel;
     //每一个v坐标数值对应的u
     std::vector<int> umax;
