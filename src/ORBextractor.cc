@@ -83,7 +83,6 @@ namespace ORB_SLAM3
     {
         int m_01 = 0, m_10 = 0;
         //图像的中心点
-        printf("current x = %d ,current y = %d \n",pt.x,pt.y);
         const uchar* center = &image.at<uchar> (cvRound(pt.y), cvRound(pt.x));
 
         // Treat the center line differently, v=0
@@ -1253,7 +1252,7 @@ namespace ORB_SLAM3
     */
     void ORBextractor::ComputePyramid(cv::Mat image)
     {
-        for (int level = 0; level < nlevels; ++level)EDGE_THRESHOLD
+        for (int level = 0; level < nlevels; ++level)
         {
             //在原图的基础上加上一个边界EDGE_THRESHOLD，并在新的图像上画一个矩形
             float scale = mvInvScaleFactor[level];
@@ -1267,12 +1266,12 @@ namespace ORB_SLAM3
             {
                 //将上层图像缩放到当前层数，0，0表示自动计算水平方向和垂直方向的缩放系数，INTER_LINEAR表示线性插值
                 resize(mvImagePyramid[level-1], mvImagePyramid[level], sz, 0, 0, INTER_LINEAR);
-                copyMakeBorder(mvImagePyramid[level], temp, EDGE_THRESHOLD, , EDGE_THRESHOLD, EDGE_THRESHOLD,
+                copyMakeBorder(mvImagePyramid[level], temp, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD,
                                BORDER_REFLECT_101+BORDER_ISOLATED);
-                std::stringstream ss;
-                ss<<level-1<<"image";
-                cv::imshow(ss.str(),mvImagePyramid[level] );
-                cv::waitKey(0);
+                // std::stringstream ss;
+                // ss<<level-1<<"image";
+                // cv::imshow(ss.str(),mvImagePyramid[level] );
+                // cv::waitKey(0);
             }
             else
             {

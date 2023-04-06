@@ -351,7 +351,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     if(mbInitialComputations)
     {
         ComputeImageBounds(imGray);
-
+        //每个特征点占几个格子
         mfGridElementWidthInv=static_cast<float>(FRAME_GRID_COLS)/static_cast<float>(mnMaxX-mnMinX);
         mfGridElementHeightInv=static_cast<float>(FRAME_GRID_ROWS)/static_cast<float>(mnMaxY-mnMinY);
 
@@ -365,7 +365,7 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
         mbInitialComputations=false;
     }
 
-
+    //计算基线？？
     mb = mbf/fx;
 
     //Set no stereo fisheye information
@@ -388,18 +388,21 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     }
     else
     {
+        //第一张图片设置当前的速度为0？？？但实际上如果不为0呢
         mVw.setZero();
     }
 
     mpMutexImu = new std::mutex();
 }
 
-
+/**
+ * @brief 将特征点分配到网格中
+*/
 void Frame::AssignFeaturesToGrid()
 {
     // Fill matrix with points
     const int nCells = FRAME_GRID_COLS*FRAME_GRID_ROWS;
-
+    //为啥按照一半来预留空间呢？可能是每个各自默认包含两个特征
     int nReserve = 0.5f*N/(nCells);
 
     for(unsigned int i=0; i<FRAME_GRID_COLS;i++)
@@ -673,30 +676,31 @@ Eigen::Vector3f Frame::inRefCoordinates(Eigen::Vector3f pCw)
 
 vector<size_t> Frame::GetFeaturesInArea(const float &x, const float  &y, const float  &r, const int minLevel, const int maxLevel, const bool bRight) const
 {
+    //待匹配点的索引
     vector<size_t> vIndices;
     vIndices.reserve(N);
 
     float factorX = r;
     float factorY = r;
-
+    //求当前待搜索区域的最左侧格子的X坐标,向下取整---左边界
     const int nMinCellX = max(0,(int)floor((x-mnMinX-factorX)*mfGridElementWidthInv));
     if(nMinCellX>=FRAME_GRID_COLS)
     {
         return vIndices;
     }
-
+    //这不应该也是向下取整吗？--右边界
     const int nMaxCellX = min((int)FRAME_GRID_COLS-1,(int)ceil((x-mnMinX+factorX)*mfGridElementWidthInv));
     if(nMaxCellX<0)
     {
         return vIndices;
     }
-
+    //上边界
     const int nMinCellY = max(0,(int)floor((y-mnMinY-factorY)*mfGridElementHeightInv));
     if(nMinCellY>=FRAME_GRID_ROWS)
     {
         return vIndices;
     }
-
+    //下边界
     const int nMaxCellY = min((int)FRAME_GRID_ROWS-1,(int)ceil((y-mnMinY+factorY)*mfGridElementHeightInv));
     if(nMaxCellY<0)
     {
@@ -709,6 +713,7 @@ vector<size_t> Frame::GetFeaturesInArea(const float &x, const float  &y, const f
     {
         for(int iy = nMinCellY; iy<=nMaxCellY; iy++)
         {
+            //取出当前格子的id
             const vector<size_t> vCell = (!bRight) ? mGrid[ix][iy] : mGridRight[ix][iy];
             if(vCell.empty())
                 continue;
@@ -718,6 +723,7 @@ vector<size_t> Frame::GetFeaturesInArea(const float &x, const float  &y, const f
                 const cv::KeyPoint &kpUn = (Nleft == -1) ? mvKeysUn[vCell[j]]
                                                          : (!bRight) ? mvKeys[vCell[j]]
                                                                      : mvKeysRight[vCell[j]];
+                //只取出第一层的特征点，那为啥不从第一层开始遍历
                 if(bCheckLevels)
                 {
                     if(kpUn.octave<minLevel)
@@ -726,10 +732,10 @@ vector<size_t> Frame::GetFeaturesInArea(const float &x, const float  &y, const f
                         if(kpUn.octave>maxLevel)
                             continue;
                 }
-
+                //直接计算像素点的距离
                 const float distx = kpUn.pt.x-x;
                 const float disty = kpUn.pt.y-y;
-
+                //判断是否在正方形内
                 if(fabs(distx)<factorX && fabs(disty)<factorY)
                     vIndices.push_back(vCell[j]);
             }
@@ -738,7 +744,12 @@ vector<size_t> Frame::GetFeaturesInArea(const float &x, const float  &y, const f
 
     return vIndices;
 }
-
+/**
+ * @brief 判断当前特征在哪个格子中
+ * @param kp 特征点
+ * @param posX 列坐标
+ * @param posY 行坐标
+*/
 bool Frame::PosInGrid(const cv::KeyPoint &kp, int &posX, int &posY)
 {
     posX = round((kp.pt.x-mnMinX)*mfGridElementWidthInv);
@@ -761,7 +772,8 @@ void Frame::ComputeBoW()
     }
 }
 /**
- * @brief 
+ * @brief 有畸变系数就去畸变
+
 */
 void Frame::UndistortKeyPoints()
 {
@@ -799,7 +811,9 @@ void Frame::UndistortKeyPoints()
     }
 
 }
-
+/**
+ * 计算图像边界，如果有畸变参数就计算去畸变后的
+*/
 void Frame::ComputeImageBounds(const cv::Mat &imLeft)
 {
     if(mDistCoef.at<float>(0)!=0.0)
@@ -1051,7 +1065,9 @@ void Frame::setIntegrated()
     unique_lock<std::mutex> lock(*mpMutexImu);
     mbImuPreintegrated = true;
 }
-
+/**
+ * @brief 双目帧构造函数
+*/
 Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth, GeometricCamera* pCamera, GeometricCamera* pCamera2, Sophus::SE3f& Tlr,Frame* pPrevF, const IMU::Calib &ImuCalib)
         :mpcpi(NULL), mpORBvocabulary(voc),mpORBextractorLeft(extractorLeft),mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K.clone()), mK_(Converter::toMatrix3f(K)),  mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
          mImuCalib(ImuCalib), mpImuPreintegrated(NULL), mpPrevFrame(pPrevF),mpImuPreintegratedFrame(NULL), mpReferenceKF(static_cast<KeyFrame*>(NULL)), mbImuPreintegrated(false), mpCamera(pCamera), mpCamera2(pCamera2),

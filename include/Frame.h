@@ -252,6 +252,7 @@ public:
     // Keypoints are assigned to cells in a grid to reduce matching complexity when projecting MapPoints.
     static float mfGridElementWidthInv;
     static float mfGridElementHeightInv;
+    //图像网格，用来存储网格对应的特征点ID
     std::vector<std::size_t> mGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
 
     IMU::Bias mPredBias;
@@ -322,7 +323,7 @@ private:
     bool mbIsSet;
 
     bool mbImuPreintegrated;
-
+    //IMU线程锁
     std::mutex *mpMutexImu;
 
 public:

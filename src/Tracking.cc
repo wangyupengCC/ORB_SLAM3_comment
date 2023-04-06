@@ -1634,7 +1634,9 @@ Sophus::SE3f Tracking::GrabImageMonocular(const cv::Mat &im, const double &times
 
     lastID = mCurrentFrame.mnId;
     Track();
-
+    std::cout<<"mFirstFramePose = "<<std::endl;
+    std::cout<<mCurrentFrame.GetPose().rotationMatrix()<<std::endl;
+    std::cout<<mCurrentFrame.GetPose().translation()<<std::endl;
     return mCurrentFrame.GetPose();
 }
 
@@ -1647,7 +1649,7 @@ void Tracking::GrabImuData(const IMU::Point &imuMeasurement)
 
 void Tracking::PreintegrateIMU()
 {
-
+    //没有上一帧，那就不进行预积分
     if(!mCurrentFrame.mpPrevFrame)
     {
         Verbose::PrintMess("non prev frame ", Verbose::VERBOSITY_NORMAL);
@@ -1855,7 +1857,7 @@ void Tracking::Track()
     {
         cout << "ERROR: There is not an active map in the atlas" << endl;
     }
-
+    //图像时间戳异常处理
     if(mState!=NO_IMAGES_YET)
     {
         if(mLastFrame.mTimeStamp>mCurrentFrame.mTimeStamp)
@@ -1896,17 +1898,17 @@ void Tracking::Track()
         }
     }
 
-
+    //如果是单目IMU，双目IMU，或者RGBD-IMU模式，同时该帧不是第一帧，Bias传播
     if ((mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD) && mpLastKeyFrame)
         mCurrentFrame.SetNewBias(mpLastKeyFrame->GetImuBias());
-
+    //第一张图片接收到并处理完了，将状态变为NOT_INITIALIZED
     if(mState==NO_IMAGES_YET)
     {
         mState = NOT_INITIALIZED;
     }
 
     mLastProcessedState=mState;
-
+    //如果是IMU模式或者还没有创建地图，进行预积分
     if ((mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD) && !mbCreatedMap)
     {
 #ifdef REGISTER_TIMES
@@ -1936,7 +1938,7 @@ void Tracking::Track()
         mbMapUpdated = true;
     }
 
-
+    //第一帧先进来，等到第2帧了
     if(mState==NOT_INITIALIZED)
     {
         if(mSensor==System::STEREO || mSensor==System::RGBD || mSensor==System::IMU_STEREO || mSensor==System::IMU_RGBD)
@@ -2488,10 +2490,11 @@ void Tracking::StereoInitialization()
 
 void Tracking::MonocularInitialization()
 {
-
+    //第一帧用来做准备
     if(!mbReadyToInitializate)
     {
         // Set Reference Frame
+        //参考帧的特征点要大于100
         if(mCurrentFrame.mvKeys.size()>100)
         {
 
@@ -2521,6 +2524,7 @@ void Tracking::MonocularInitialization()
     }
     else
     {
+        //第二帧，特征点<100或者视觉信息跳变就舍弃
         if (((int)mCurrentFrame.mvKeys.size()<=100)||((mSensor == System::IMU_MONOCULAR)&&(mLastFrame.mTimeStamp-mInitialFrame.mTimeStamp>1.0)))
         {
             mbReadyToInitializate = false;

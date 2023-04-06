@@ -644,7 +644,14 @@ namespace ORB_SLAM3
 
         return nmatches;
     }
-
+    /**
+     * @brief 初始化特征匹配函数
+     * @param F1 参考帧
+     * @param F2 当前帧
+     * @param vbPrevMatched 参考帧准备匹配的特征点
+     * @param vnMatches12 存储F2匹配到F1的点
+     * @param windowSize 匹配窗口搜索的半径
+    */
     int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f> &vbPrevMatched, vector<int> &vnMatches12, int windowSize)
     {
         int nmatches=0;
@@ -662,6 +669,7 @@ namespace ORB_SLAM3
         {
             cv::KeyPoint kp1 = F1.mvKeysUn[i1];
             int level1 = kp1.octave;
+            //只比较第一层的金字塔
             if(level1>0)
                 continue;
 
